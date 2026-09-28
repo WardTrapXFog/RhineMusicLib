@@ -1,0 +1,10 @@
+#stage[data-empty="true"] #archive-ui > :not(#empty-gallery) { display: none; }
+#stage[data-empty="false"] #empty-gallery { display: none; }
+.empty-gallery { position: absolute; left: 8.5%; top: 36%; z-index: 5; max-width: 570px; color: #242a25; font-family: MiSans, sans-serif; }
+.empty-gallery > span { display: block; margin-bottom: 22px; color: #9c652a; font-size: 14px; font-weight: 600; letter-spacing: .18em; }
+.empty-gallery h2 { margin: 0 0 16px; font-size: clamp(36px, 4vw, 72px); font-weight: 500; letter-spacing: .04em; }
+.empty-gallery p { margin: 0 0 34px; font-size: 20px; color: #505c50; }
+.empty-gallery button { padding: 13px 25px; border: 1px solid #293d30; color: #f7f4ed; background: #263a2e; font: 600 18px MiSans, sans-serif; cursor: pointer; }
+#stage[data-color-theme="dark"] .empty-gallery { color: #e7e5da; }
+#stage[data-color-theme="dark"] .empty-gallery p { color: #b5bfb2; }
+@media (max-width: 700px) { .empty-gallery { left: 8%; right: 8%; top: 31%; } .empty-gallery p { font-size: 17px; } }
