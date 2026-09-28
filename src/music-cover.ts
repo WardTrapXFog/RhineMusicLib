@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { records } from "./data";
+import { records, songCoverUrl } from "./data";
 
 export function createCoverAtlas() {
   const canvas = document.createElement("canvas");
@@ -41,7 +41,7 @@ export function createCoverAtlas() {
       finishTile(x, y);
       texture.needsUpdate = true;
     };
-    image.src = `/api/music/cover/${record.song.id}`;
+    image.src = songCoverUrl(record.song.id);
   });
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;

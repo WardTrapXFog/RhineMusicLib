@@ -1,3 +1,5 @@
+import { browserAudioUrl, browserCoverUrl, forgetBrowserDirectory, readBrowserDirectory } from "./browser-library";
+
 export interface Song {
   id: number;
   title: string;
@@ -29,6 +31,10 @@ export const categories = ["全部歌曲", ...archiveColumns];
 export let musicDirectory = "";
 export let musicError = "";
 export let songs: Song[] = [];
+export let browserLibraryActive = false;
+
+export const songAudioUrl = (id: number) => browserAudioUrl(id) || `/api/music/audio/${id}`;
+export const songCoverUrl = (id: number) => browserCoverUrl(id) || `/api/music/cover/${id}`;
 
 function mapRecords(library: Song[]): ArchiveRecord[] {
   return library.map((song, index) => ({
@@ -54,13 +60,33 @@ function indexRecords() {
   records.forEach((record, index) => columnIndex[archiveColumns.indexOf(record.category)]?.push(index));
 }
 export async function loadMusicLibrary(directory?: string) {
+  if (!directory) {
+    try {
+      const browserCatalog = await readBrowserDirectory();
+      if (browserCatalog) {
+        browserLibraryActive = true;
+        musicDirectory = browserCatalog.directory;
+        songs = browserCatalog.songs;
+        archiveColumns.length = Math.min(5, songs.length);
+        categories.splice(1, categories.length - 1, ...archiveColumns);
+        records = mapRecords(songs);
+        indexRecords();
+        return records;
+      }
+    } catch { await forgetBrowserDirectory().catch(() => {}); }
+  }
   const response = await fetch("/api/music/library", {
     method: directory ? "POST" : "GET",
     headers: directory ? { "Content-Type": "application/json" } : undefined,
     body: directory ? JSON.stringify({ directory }) : undefined,
   });
-  const result = await response.json() as { directory?: string; songs?: Song[]; error?: string };
+  const body = await response.text();
+  let result: { directory?: string; songs?: Song[]; error?: string };
+  try { result = JSON.parse(body); }
+  catch { throw new Error("本机音乐服务未响应。请双击启动音乐播放器.bat，或点击“浏览”授权浏览器读取文件夹。"); }
   if (!response.ok) throw new Error(result.error || "曲库读取失败");
+  if (directory) await forgetBrowserDirectory().catch(() => {});
+  browserLibraryActive = false;
   musicDirectory = result.directory || musicDirectory;
   songs = result.songs || [];
   archiveColumns.length = Math.min(5, songs.length);

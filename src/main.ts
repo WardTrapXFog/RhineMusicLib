@@ -28,6 +28,7 @@ import {
   columnFiles,
   fileLocation,
   musicDirectory,
+  browserLibraryActive,
   musicError,
   loadMusicLibrary,
 } from "./data";
@@ -701,7 +702,7 @@ function motionPreferenceNoteMarkup() {
 }
 function settingsMarkup() {
   return `<h2>SYSTEM SETTINGS<small>终端偏好设置</small></h2><p class="settings-intro">RHINE MUSIC LIB <span>·</span> LOCAL COLLECTION</p>
-  <div class="music-library-setting"><strong>MUSIC DIRECTORY / 音乐目录</strong><p>${musicError ? escapeHtml(musicError) : `${records.length} 首歌曲${musicDirectory ? " · 当前目录" : " · 尚未选择目录"}`}</p><form id="music-library-form"><input name="directory" value="${escapeHtml(musicDirectory)}" aria-label="音乐目录路径" spellcheck="false"/><button type="button" data-action="choose-music">选择文件夹</button><button type="submit">载入曲库 ↗</button></form></div>
+  <div class="music-library-setting"><strong>MUSIC DIRECTORY / 音乐目录</strong><p>${musicError ? escapeHtml(musicError) : `${records.length} 首歌曲${musicDirectory ? ` · ${escapeHtml(musicDirectory)}${browserLibraryActive ? "（浏览器授权）" : ""}` : " · 尚未选择目录"}`}</p><form id="music-library-form"><input name="directory" value="${browserLibraryActive ? "" : escapeHtml(musicDirectory)}" aria-label="音乐目录路径" spellcheck="false"/><button type="button" data-action="choose-music">选择文件夹</button><button type="submit">载入曲库 ↗</button></form></div>
   <div class="settings-list">${themeSettingsMarkup(prefs.colorTheme === "dark")}${!isWallpaper ? `<label><div><strong>SUPER PERFORMANCE</strong><span>降低三维画质和渲染分辨率，保留完整动效；关闭后恢复原画质</span></div><input type="checkbox" data-pref="superPerformance" ${prefs.superPerformance ? "checked" : ""}/><i class="toggle"></i></label>` : ""}${audioSettingsMarkup(prefs, false)}</div>${motionPreferenceNoteMarkup()}${motionSettingsMarkup(prefs.motion, prefs.motionPreset)}${qualityMarkup(prefs.rendering)}<div class="settings-shortcuts"><span>KEYBOARD CONTROLS</span><p><kbd>←</kbd><kbd>→</kbd> 切列 <kbd>↑</kbd><kbd>↓</kbd> 选曲 <kbd>ENTER</kbd> 播放 <kbd>/</kbd> 检索 <kbd>ESC</kbd> 返回</p></div><div class="settings-bottom"><button data-action="restart">REINITIALIZE SYSTEM <span>↻</span></button></div><div class="modal-bottom"><span>RHINE MUSIC LIB / 1.0 · 使用 MiSans 字体（小米） <a href="${assetUrl("fonts/MiSans-license.pdf")}" target="_blank" rel="noopener">字体许可</a></span><span>POWERED BY RHINE LAB</span></div>`;
 }
 

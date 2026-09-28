@@ -15,6 +15,15 @@ const hasNovecento = ["Normal", "DemiBold", "Bold"].every(weight =>
 );
 export default defineConfig(({ mode }) => ({
   base: mode === "wallpaper" ? "./" : "/",
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.replaceAll("\\", "/").includes("/node_modules/music-metadata/")) return "music-metadata";
+        },
+      },
+    },
+  },
   define: {
     __RHINE_MODELS__: JSON.stringify(Object.fromEntries(models.map(model => [model.key,model.fileName]))),
     __RHINE_NOVECENTO__: JSON.stringify(hasNovecento),

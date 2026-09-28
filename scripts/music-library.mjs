@@ -60,11 +60,16 @@ async function pickDirectory() {
   if (process.platform !== "win32") throw new Error("请在输入框中填写音乐文件夹路径");
   const script = [
     "Add-Type -AssemblyName System.Windows.Forms",
+    "$owner = New-Object System.Windows.Forms.Form",
+    "$owner.TopMost = $true",
+    "$owner.ShowInTaskbar = $false",
+    "$owner.Opacity = 0",
+    "$owner.Show()",
     "$dialog = New-Object System.Windows.Forms.FolderBrowserDialog",
     "$dialog.Description = '选择本地音乐文件夹'",
-    "if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Write($dialog.SelectedPath) }",
+    "try { if ($dialog.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Write($dialog.SelectedPath) } } finally { $dialog.Dispose(); $owner.Dispose() }",
   ].join("; ");
-  const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-STA", "-Command", script], { windowsHide: true, timeout: 120000 });
+  const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-STA", "-Command", script], { timeout: 120000 });
   return stdout.trim();
 }
 

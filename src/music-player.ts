@@ -1,4 +1,4 @@
-import { records, type Song } from "./data";
+import { records, songAudioUrl, songCoverUrl, type Song } from "./data";
 import { escapeHtml } from "./html";
 import "./music-player.css";
 
@@ -57,7 +57,7 @@ export class MusicPlayer {
 
   detail(song: Song | null) {
     if (!song) return `<div class="music-empty">曲库未连接。请在系统设置中指定可读取的音乐目录。</div>`;
-    const cover = song.hasCover ? `<img src="/api/music/cover/${song.id}" alt="${escapeHtml(song.album)} 封面"/>` : `<span>RHINE<br/>MUSIC<br/>LIB</span>`;
+    const cover = song.hasCover ? `<img src="${songCoverUrl(song.id)}" alt="${escapeHtml(song.album)} 封面"/>` : `<span>RHINE<br/>MUSIC<br/>LIB</span>`;
     return `<div class="music-detail"><div class="music-kicker">AUDIO COLLECTION <span>／</span> ${String(song.id + 1).padStart(3, "0")}</div>
       <div class="music-heading"><h2>${escapeHtml(song.title)}</h2><p>${escapeHtml(song.artist)} <span>／</span> ${escapeHtml(song.album)}</p></div>
       <div class="music-cover">${cover}<div class="music-disc"><i></i></div></div>
@@ -74,7 +74,7 @@ export class MusicPlayer {
     if (!song) return;
     if (this.index !== index) {
       this.index = index;
-      this.audio.src = `/api/music/audio/${song.id}`;
+      this.audio.src = songAudioUrl(song.id);
       this.audio.load();
       this.onSelect(index);
     }
