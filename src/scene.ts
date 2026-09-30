@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { ArchiveVisibility } from "./archive-visibility";
 import { InstanceUpdates } from "./instance-updates";
 import { RenderState } from "./render-state";
+import { RenderCadence } from "./render-cadence";
 import { SharedDepthAO, SharedDepthBokeh } from "./shared-depth";
 import { disposeThreeTree } from "./three-resources";
 import { ThemeWave } from "./theme-motion";
@@ -176,6 +177,9 @@ export class ArchiveScene {
   private matrixUpdates?: InstanceUpdates;
   private themeUpdates?: InstanceUpdates;
   private renderState = new RenderState();
+  private renderCadence = new RenderCadence();
+  private shadowState = new RenderState();
+  private shadowFrames = 0;
   private renderedFrames = 0;
   private reusedFrames = 0;
   private visibility = new ArchiveVisibility();
@@ -289,7 +293,10 @@ export class ArchiveScene {
       "三维研究档案阵列，点击选择，左右拖动切列，上下拖动或滚轮切换列内档案",
     );
     container.appendChild(this.renderer.domElement);
-    this.renderer.domElement.addEventListener('webglcontextrestored', () => this.renderState.invalidate(), { signal: this.inputEvents.signal });
+    this.renderer.domElement.addEventListener('webglcontextrestored', () => {
+      this.renderState.invalidate();
+      this.shadowState.invalidate();
+    }, { signal: this.inputEvents.signal });
     this.scene.background = new THREE.Color("#eae5e1");
     // The frame updates world matrices once after simulation; subsequent
     // beauty, normal, depth and transmission renders reuse those same matrices.
@@ -887,6 +894,7 @@ export class ArchiveScene {
   }
   resize() {
     this.renderState.invalidate();
+    this.shadowState.invalidate();
     const w = this.container.clientWidth,
       h = this.container.clientHeight;
     const kind = this.container.closest<HTMLElement>("[data-layout]")?.dataset.layout ?? "";
@@ -1803,7 +1811,7 @@ export class ArchiveScene {
       (THREE.MathUtils.lerp(0.0003, 0.0008, detail) *
         this.quality.depthOfField) /
       100;
-    this.renderer.info.reset();
+    if (!this.renderCadence.due(time, Boolean(cinematic))) return;
     // Keep all simulation and picking current. Reuse the composited canvas only
     // when its actual inputs are identical, including late textures and materials.
     const state = this.renderState;
@@ -1841,7 +1849,24 @@ export class ArchiveScene {
       if (!state.end()) { this.reusedFrames++; return; }
     }
     this.renderedFrames++;
-    this.renderer.shadowMap.needsUpdate = true;
+    // Disc artwork and document changes do not change the shadow casters.
+    const shadow = this.shadowState;
+    shadow.begin();
+    shadow.add(Number(this.renderer.shadowMap.enabled), this.light.shadow.mapSize.x);
+    shadow.floats(...this.light.matrixWorld.elements, ...this.light.target.matrixWorld.elements,
+      ...this.light.shadow.camera.projectionMatrix.elements);
+    this.scene.traverse(object => {
+      shadow.add(object.id, Number(object.visible));
+      if (!(object instanceof THREE.Mesh) || !object.castShadow) return;
+      const material = object.material as THREE.Material;
+      shadow.add(object.id, Number(object.visible), object.geometry.id, material.uuid,
+        Number(material.visible), material.side);
+      shadow.floats(...object.matrixWorld.elements, material.opacity, material.alphaTest);
+      if (object instanceof THREE.InstancedMesh) shadow.add(object.count, object.instanceMatrix.version);
+    });
+    this.renderer.shadowMap.needsUpdate = shadow.end() || this.light.shadow.needsUpdate;
+    if (this.renderer.shadowMap.enabled && this.renderer.shadowMap.needsUpdate) this.shadowFrames++;
+    this.renderer.info.reset();
     if (this.superPerformance) this.renderer.render(this.scene, this.camera);
     else this.composer.render();
   }
@@ -1881,6 +1906,7 @@ export class ArchiveScene {
       loaded: this.loaded,
       drawCalls: this.renderer.info.render.calls,
       renderedFrames: this.renderedFrames,
+      shadowFrames: this.shadowFrames,
       reusedFrames: this.reusedFrames,
       superPerformance: this.superPerformance,
       presentation: this.presence,

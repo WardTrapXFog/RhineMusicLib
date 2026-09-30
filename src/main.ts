@@ -1087,7 +1087,7 @@ function frame(ms: number) {
   // The calibrated 2D opening fully covers the scene until array entry.
   scene?.setPlayback(player.currentIndex, player.playing);
   viewer?.setPlayback(player.playing && player.currentIndex === selected);
-  if (!viewer?.isOpen && (!cinema || cinema.time >= 21.9)) scene?.update(time, cinema);
+  if (!viewer?.isOpen && (!modal || modalClosing) && (!cinema || cinema.time >= 21.9)) scene?.update(time, cinema);
   viewer?.update(time);
   if (threeState === "closing" && scene?.presentationHidden) releaseThree();
   playground?.position();

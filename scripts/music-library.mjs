@@ -14,16 +14,12 @@ let directory = savedDirectory;
 let songs = [];
 let covers = new Map();
 
-async function filesUnder(root) {
+export async function filesUnder(root) {
   const found = [];
-  async function visit(folder) {
-    for (const entry of await readdir(folder, { withFileTypes: true })) {
-      const full = path.join(folder, entry.name);
-      if (entry.isDirectory()) await visit(full);
-      else if (entry.isFile() && extensions.has(path.extname(entry.name).toLowerCase())) found.push(full);
-    }
+  for (const entry of await readdir(root, { withFileTypes: true })) {
+    if (entry.isFile() && extensions.has(path.extname(entry.name).toLowerCase()))
+      found.push(path.join(root, entry.name));
   }
-  await visit(root);
   return found.sort((a, b) => a.localeCompare(b, "zh-Hans-CN", { numeric: true }));
 }
 

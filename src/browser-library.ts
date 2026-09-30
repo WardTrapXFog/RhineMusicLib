@@ -48,16 +48,12 @@ async function setStoredDirectory(handle: Directory | null): Promise<void> {
   } finally { db.close(); }
 }
 
-async function scanDirectory(directory: Directory): Promise<Catalog> {
+export async function scanDirectory(directory: Directory): Promise<Catalog> {
   const found: { name: string; handle: FileSystemFileHandle }[] = [];
-  async function visit(folder: Directory, prefix = "") {
-    for await (const entry of folder.values()) {
-      if (entry.kind === "directory") await visit(entry as Directory, `${prefix}${entry.name}/`);
-      else if (extensions.has(entry.name.slice(entry.name.lastIndexOf(".")).toLowerCase()))
-        found.push({ name: `${prefix}${entry.name}`, handle: entry as FileSystemFileHandle });
-    }
+  for await (const entry of directory.values()) {
+    if (entry.kind === "file" && extensions.has(entry.name.slice(entry.name.lastIndexOf(".")).toLowerCase()))
+      found.push({ name: entry.name, handle: entry as FileSystemFileHandle });
   }
-  await visit(directory);
   found.sort((a, b) => a.name.localeCompare(b.name, "zh-Hans-CN", { numeric: true }));
   const nextFiles = new Map<number, File>();
   const nextCovers = new Map<number, Blob>();

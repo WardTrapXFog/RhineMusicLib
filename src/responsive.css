@@ -216,3 +216,47 @@
   [data-layout="compact"] .system-nav [data-action="search"] { font-size: 0; gap: 0; }
   [data-layout="compact"] .viewer-help { max-width: 110px; }
 }
+
+/* Library size must not change the dialog or move its footer out of view. */
+.terminal-modal:has(> .search-results) {
+  display: grid;
+  grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto;
+  height: min(836px, calc(100% - 60px));
+  min-height: 0;
+  overflow: hidden;
+}
+.terminal-modal:has(> .search-results) > * { min-width: 0; }
+.terminal-modal:has(> .search-results) .category-filters {
+  max-width: 100%;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 22px;
+  padding: 16px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-line) transparent;
+  overscroll-behavior-x: contain;
+}
+.terminal-modal:has(> .search-results) .category-filters button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  max-width: 320px;
+  overflow: hidden;
+  min-height: 32px;
+}
+.terminal-modal:has(> .search-results) .search-results {
+  height: auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+.terminal-modal:has(> .search-results) .modal-bottom {
+  position: static;
+  margin-top: 16px;
+  gap: 12px;
+}
+.terminal-modal:has(> .search-results) .result-row > span { min-width: 0; overflow-wrap: anywhere; }
+:is([data-layout="compact"], [data-layout="portrait"]) .terminal-modal:has(> .search-results) { height: 100%; }
+:is([data-layout="compact"], [data-layout="portrait"]) .terminal-modal:has(> .search-results) h2 { margin: 12px 0; }
+:is([data-layout="compact"], [data-layout="portrait"]) .terminal-modal:has(> .search-results) .category-filters { padding: 4px 0; }

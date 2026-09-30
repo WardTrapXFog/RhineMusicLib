@@ -137,8 +137,10 @@ export class DecryptionController {
     this.frame = decryptionFrame(-1);
   }
   select(clarity = 0) {
+    const inDetail = this.active;
     this.leave();
     this.clarity = clarity;
+    if (inDetail) this.enter(clarity >= 1);
   }
   finish() {
     this.elapsed = (DECRYPTION_END - DECRYPTION_START) / INTERACTIVE_RATE;

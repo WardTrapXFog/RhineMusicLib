@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { RenderCadence } from "./render-cadence";
 import { disposeThreeTree } from "./three-resources";
 import { themeEnvironment } from "./theme-material";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -29,6 +30,7 @@ const PARTS = [
 
 type ModelSource = { model: THREE.Group; dispose: () => void; setClarity?: (value: number) => void };
 export class ModelViewer {
+  private renderCadence = new RenderCadence();
   private discPlaying = false;
   setPlayback(playing: boolean) { this.discPlaying = playing; }
   private themeAmount = 0;
@@ -629,6 +631,7 @@ export class ModelViewer {
     const objectDistance = this.camera.position.length();
     fog.near = Math.max(0, objectDistance - 1);
     fog.far = objectDistance + 12;
+    if (!this.renderCadence.due(time)) return;
     if (this.quality.antialias === "smaa") this.pipeline.composer.render();
     else this.renderer.render(this.scene, this.camera);
     this.root.dataset.stats = JSON.stringify({
