@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { records, songCoverUrl } from "./data";
+import { themeMaterial } from "./theme-material";
 
 export function createCoverAtlas() {
   const canvas = document.createElement("canvas");
@@ -51,7 +52,6 @@ export function createCoverAtlas() {
 
 export function coverGeometry(index: number, columns: number, rows: number) {
   const geometry = new THREE.CircleGeometry(1.26, 64);
-  geometry.translate(0, 1.45, 0.31);
   setCoverUv(geometry, index, columns, rows);
   return geometry;
 }
@@ -144,5 +144,6 @@ export function galleryCoverMaterial(texture: THREE.Texture, columns: number, ro
     shader.fragmentShader = shader.fragmentShader.replace("#include <map_fragment>", "diffuseColor *= texture2D(map, vCoverUv);");
   };
   material.customProgramCacheKey = () => `music-cover-atlas-${columns}-${rows}`;
+  themeMaterial(material, "Printed_Canvas", true);
   return material;
 }

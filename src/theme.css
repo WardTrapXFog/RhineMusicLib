@@ -67,3 +67,23 @@
 [data-dark-surface="true"] .archive-atmosphere::before {
   background: linear-gradient(180deg, rgba(var(--theme-paper-rgb), .82), transparent 36%), linear-gradient(0deg, rgba(var(--theme-paper-rgb), .84), transparent 25%), radial-gradient(ellipse at 48% 48%, transparent 42%, rgba(var(--theme-paper-rgb), .48) 90%);
 }
+
+[data-dark-surface="true"] .library-setup { color: var(--theme-ink); background: rgba(var(--theme-paper-rgb), .74); }
+[data-dark-surface="true"] .library-setup-panel { background: var(--theme-panel); border-color: var(--theme-line); box-shadow: 0 26px 95px #0004; }
+[data-dark-surface="true"] :is(.library-setup-panel p, .library-setup-panel label, .library-setup-foot) { color: var(--theme-muted); }
+[data-dark-surface="true"] .library-setup-rule { background: var(--theme-line); }
+[data-dark-surface="true"] :is(.library-setup-rule::before) { background: var(--theme-accent); }
+[data-dark-surface="true"] :is(.library-setup-field, .library-setup-actions button) { border-color: var(--theme-line); }
+[data-dark-surface="true"] :is(.library-setup-field input, .library-setup-field button, .library-setup-actions button) { color: var(--theme-ink); }
+[data-dark-surface="true"] .library-setup-actions [data-load] { background: var(--theme-ink); color: var(--theme-paper); }
+[data-dark-surface="true"] :is(.library-setup-code span, .library-setup-foot span, .library-setup-error) { color: var(--theme-accent); }
+[data-dark-surface="true"] .empty-gallery { color: var(--theme-ink); }
+[data-dark-surface="true"] .empty-gallery > span { color: var(--theme-accent); }
+[data-dark-surface="true"] .empty-gallery p { color: var(--theme-muted); }
+[data-dark-surface="true"] .empty-gallery button { color: var(--theme-paper); background: var(--theme-ink); border-color: var(--theme-line); }
+[data-dark-surface="true"] :is(.detail-rule, .document-redaction-ink) { background: var(--theme-ink); }
+[data-dark-surface="true"] .detail-title-cn > span { background: var(--theme-field); color: var(--theme-muted); }
+[data-dark-surface="true"] .startup-gate { color: var(--theme-ink); background: var(--theme-paper); }
+[data-dark-surface="true"] .loading { color: var(--theme-ink); background: var(--theme-paper); }
+[data-dark-surface="true"] :is(.entry-silent, .entry-status, .entry-start:disabled) { color: var(--theme-muted); }
+[data-dark-surface="true"] .entry-start { border-color: var(--theme-line); }

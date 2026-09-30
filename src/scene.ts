@@ -19,7 +19,7 @@ import { applyTextureQuality, resizeQuality } from "./quality-renderer";
 import { CardAppearance } from "./appearance";
 import { configureInternalOptics } from "./internal-optics";
 import { DecryptionController } from "./decryption";
-import { fileAtSlot, fileLocation, records } from "./data";
+import { archiveColumns, fileAtSlot, fileLocation, records } from "./data";
 import {
   cellKey,
   fileAtCell,
@@ -121,6 +121,9 @@ export class ArchiveScene {
   private themeAttribute?: THREE.InstancedBufferAttribute;
   get themeAmount() { return this.theme.background(performance.now() / 1000); }
   setTheme(dark: boolean, immediate = false) { this.theme.set(dark, performance.now() / 1000, this.selectedCell, immediate); }
+  private playingIndex = -1;
+  private discPlaying = false;
+  setPlayback(index: number, playing: boolean) { this.playingIndex = index; this.discPlaying = playing; }
   private playfield = { enabled: false, bands: quietBands(), strength: 1, flatten: 0, target: null as string | null, breathing: true };
   private flatMix = 0;
   private rhythm = new RhythmMotion();
@@ -497,6 +500,7 @@ export class ArchiveScene {
     galleryGeometry.translate(0, 1.5, .31);
     this.coverIndexAttribute = new THREE.InstancedBufferAttribute(new Float32Array(count), 1).setUsage(THREE.DynamicDrawUsage);
     galleryGeometry.setAttribute("coverIndex", this.coverIndexAttribute);
+    galleryGeometry.setAttribute("archiveTheme", this.themeAttribute!);
     this.coverInstances = new THREE.InstancedMesh(galleryGeometry, galleryCoverMaterial(gallery.texture, gallery.columns, gallery.rows), count);
     this.coverInstances.instanceMatrix = this.instances[0].instanceMatrix;
     this.coverInstances.frustumCulled = false;
@@ -506,6 +510,7 @@ export class ArchiveScene {
     spineGeometry.rotateX(-Math.PI / 2);
     spineGeometry.translate(0, 3.79, 0);
     spineGeometry.setAttribute("coverIndex", this.coverIndexAttribute);
+    spineGeometry.setAttribute("archiveTheme", this.themeAttribute!);
     this.spineInstances = new THREE.InstancedMesh(spineGeometry, galleryCoverMaterial(spine.texture, spine.columns, spine.rows), count);
     this.spineInstances.instanceMatrix = this.instances[0].instanceMatrix;
     this.spineInstances.frustumCulled = false;
@@ -513,6 +518,7 @@ export class ArchiveScene {
     this.scene.add(this.spineInstances);
     this.coverMesh = new THREE.Mesh(coverGeometry(0, atlas.columns, atlas.rows), new THREE.MeshPhysicalMaterial({ map: atlas.texture, roughness: .5, metalness: 0, transparent: true, toneMapped: false, side: THREE.DoubleSide }));
     this.coverMesh.userData.surface = "Cover_Art";
+    this.coverMesh.position.set(0, 1.45, .31);
     this.model.add(this.coverMesh);
     this.labelCanvas.width = 1024;
     this.labelCanvas.height = 440;
@@ -535,7 +541,7 @@ export class ArchiveScene {
     this.appearance.apply(this.model, 0);
     this.drawLabel(0);
     this.scene.add(this.model);
-    this.model.position.copy(this.cellPosition(poolCell(this.selectedSlot)));
+    this.model.position.copy(this.cellPosition(this.selectedCell));
     this.loaded = true;
   }
 
@@ -576,6 +582,10 @@ export class ArchiveScene {
     if (this.coverAtlas) {
       const cover = new THREE.Mesh(coverGeometry(fileAtSlot(this.selectedSlot), this.coverColumns, this.coverRows), new THREE.MeshPhysicalMaterial({ map: this.coverAtlas, roughness: .5, metalness: 0, transparent: true, toneMapped: false, side: THREE.DoubleSide }));
       cover.userData.surface = "Cover_Art";
+      cover.userData.themeAmount = themeMaterial(cover.material, "Cover_Art");
+      cover.userData.themeAmount.value = this.themeAmount;
+      cover.position.set(0, 1.45, .31);
+      cover.rotation.z = this.coverMesh?.rotation.z ?? 0;
       cover.userData.assemblyPart = "cover";
       model.add(cover);
       meshes.push(cover);
@@ -718,12 +728,10 @@ export class ArchiveScene {
     const shift = {
       lane:
         Math.abs(this.selectedCell.lane) > 2048
-          ? Math.round((this.selectedCell.lane - 2) / 5) * 5
+          ? Math.round(this.selectedCell.lane / archiveColumns.length) * archiveColumns.length
           : 0,
-      row:
-        Math.abs(this.selectedCell.row) > 2048
-          ? Math.floor((this.selectedCell.row - 12) / 8) * 8
-          : 0,
+      // Album lengths differ, so no common row period can be assumed.
+      row: 0,
     };
     if (!shift.lane && !shift.row) return;
     this.setHover(null);
@@ -824,7 +832,11 @@ export class ArchiveScene {
   }
   private drawLabel(index: number) {
     if (!this.labelTexture) return;
-    if (this.coverMesh) setCoverUv(this.coverMesh.geometry, index, this.coverColumns, this.coverRows);
+    if (this.coverMesh) {
+      setCoverUv(this.coverMesh.geometry, index, this.coverColumns, this.coverRows);
+      if (this.coverMesh.userData.recordIndex !== index) this.coverMesh.rotation.z = 0;
+      this.coverMesh.userData.recordIndex = index;
+    }
     const c = this.labelCanvas.getContext("2d")!;
     c.fillStyle = "#e6e2d9";
     c.fillRect(0, 0, 1024, 440);
@@ -1252,6 +1264,9 @@ export class ArchiveScene {
     this.last = time;
     this.clock = time;
     if (!this.loaded) return;
+    if (this.coverMesh && this.discPlaying && !this.reduced && fileAtSlot(this.selectedSlot) === this.playingIndex) {
+      this.coverMesh.rotation.z -= dt * Math.PI / 9;
+    }
     const step = !this.motion.surfaceTransitions ? 1 : Math.min(elapsed, .25) / 1.1;
     this.presence += Math.sign(this.presenceTarget - this.presence) * Math.min(step, Math.abs(this.presenceTarget - this.presence));
     this.renderer.domElement.style.opacity = String(THREE.MathUtils.clamp(this.presence / .16, 0, 1));
@@ -1885,7 +1900,7 @@ export class ArchiveScene {
       pulses: this.pulses.map((pulse) => ({ ...pulse })),
       referenceTime: Math.round((this.scanTime + 5) * 100) / 100,
       selectedSlot: this.selectedSlot,
-      selectedLane: Math.floor(this.selectedSlot / 32),
+      selectedLane: fileLocation(fileAtSlot(this.selectedSlot)).lane,
       selectedCell: { ...this.selectedCell },
       hoverCell: this.hoverCell ? { ...this.hoverCell } : null,
       hoverLifts: Object.fromEntries(this.hoverLifts),

@@ -23,9 +23,9 @@ export function themeMaterial(material: THREE.Material, name: string, instanced 
     }
     shader.fragmentShader = "uniform float rhineTheme; uniform vec3 rhineDarkSurface; uniform float rhineSubduedIndex;\n" + shader.fragmentShader;
     const mix = instanced ? "vRhineTheme" : "rhineTheme";
-    const printed = name === "Printed_Canvas";
+    const printed = name === "Printed_Canvas" || name === "Cover_Art";
     const anchor = printed ? "#include <opaque_fragment>" : "#include <roughnessmap_fragment>";
-    const dark = printed
+    const dark = name === "Cover_Art" ? "outgoingLight * .85" : printed
       ? "mix(vec3(0.023, 0.032, 0.037), vec3(0.78, 0.78, 0.71), 1.0 - smoothstep(0.12, 0.65, dot(diffuseColor.rgb, vec3(.2126,.7152,.0722))))"
       : name === "Frosted_Polymer" && !instanced
         ? "mix(rhineDarkSurface, vec3(0.92, 0.96, 0.97), glassRevealAtHeight(archiveClarity, vArchiveHeight))"

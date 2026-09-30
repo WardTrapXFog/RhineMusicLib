@@ -29,6 +29,8 @@ const PARTS = [
 
 type ModelSource = { model: THREE.Group; dispose: () => void; setClarity?: (value: number) => void };
 export class ModelViewer {
+  private discPlaying = false;
+  setPlayback(playing: boolean) { this.discPlaying = playing; }
   private themeAmount = 0;
   setTheme(value: number) { this.themeAmount = value; }
   readonly root: HTMLElement;
@@ -586,6 +588,9 @@ export class ModelViewer {
     const dt = Math.min(this.lastTime ? time - this.lastTime : 1 / 60, 0.05);
     this.lastTime = time;
     if (this.source) {
+      if (this.discPlaying && !this.reduced) this.source.model.traverse(child => {
+        if (child.userData.surface === "Cover_Art") child.rotation.z -= dt * Math.PI / 9;
+      });
       damp(this.clarity, this.targetClarity, 8, dt);
       if (Math.abs(this.clarity.value - this.targetClarity) < .0001 && Math.abs(this.clarity.velocity) < .001)
         this.clarity = { value: this.targetClarity, velocity: 0 };

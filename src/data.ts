@@ -1,4 +1,5 @@
 import { browserAudioUrl, browserCoverUrl, forgetBrowserDirectory, readBrowserDirectory } from "./browser-library";
+import { musicGroups, durationLabel, type MusicGrouping } from "./music-catalog";
 
 export interface Song {
   id: number;
@@ -26,8 +27,13 @@ export interface ArchiveRecord {
   song: Song | null;
 }
 
-export const archiveColumns = ["声音档案 01", "声音档案 02", "声音档案 03", "声音档案 04", "声音档案 05"];
+export const archiveColumns: string[] = [];
 export const categories = ["全部歌曲", ...archiveColumns];
+export let musicGrouping: MusicGrouping = "album";
+try {
+  const stored = localStorage.getItem("rhine-music-grouping");
+  if (stored === "all" || stored === "artist") musicGrouping = stored;
+} catch {}
 export let musicDirectory = "";
 export let musicError = "";
 export let songs: Song[] = [];
@@ -42,13 +48,17 @@ function mapRecords(library: Song[]): ArchiveRecord[] {
     title: song.title,
     en: song.title,
     department: song.artist,
-    category: archiveColumns[index % archiveColumns.length],
+    category: "",
     date: song.album,
     lead: song.year ? String(song.year) : "—",
     clearance: "READY TO PLAY",
-    abstract: `${song.artist} · ${song.album}`,
-    findings: [],
-    source: "",
+    abstract: `《${song.title}》收录于《${song.album}》，演出者为 ${song.artist}。${song.year ? `年份标记为 ${song.year} 年。` : "音源未记录年份。"}${song.track ? `专辑内曲序为第 ${song.track} 轨。` : "音源未记录曲序。"}`,
+    findings: [
+      `音轨时长：${durationLabel(song.duration)}。`,
+      song.hasCover ? "载体包含内嵌封面，唱片盘面沿用原始图像。" : "载体未包含内嵌封面，使用莱茵音乐库标准盘面。",
+      "声音与封面在当前终端读取。档案信息来自音源标签，未记录的项目保留为空。",
+    ],
+    source: "AUDIO METADATA / 音源标签",
     song,
   }));
 }
@@ -56,9 +66,18 @@ function mapRecords(library: Song[]): ArchiveRecord[] {
 export let records: ArchiveRecord[] = [];
 let columnIndex: number[][] = [];
 function indexRecords() {
-  columnIndex = archiveColumns.map(() => []);
-  records.forEach((record, index) => columnIndex[archiveColumns.indexOf(record.category)]?.push(index));
+  const groups = musicGroups(songs, musicGrouping);
+  archiveColumns.splice(0, archiveColumns.length, ...groups.map(group => group.name));
+  categories.splice(1, categories.length - 1, ...archiveColumns.filter(name => name !== "全部歌曲"));
+  columnIndex = groups.map(group => group.indices);
+  groups.forEach(group => group.indices.forEach(index => { if (records[index]) records[index].category = group.name; }));
 }
+export function setMusicGrouping(grouping: MusicGrouping) {
+  musicGrouping = grouping;
+  try { localStorage.setItem("rhine-music-grouping", grouping); } catch {}
+  indexRecords();
+}
+export function playbackOrder() { return columnIndex.flat(); }
 export async function loadMusicLibrary(directory?: string) {
   if (!directory) {
     try {
@@ -67,8 +86,6 @@ export async function loadMusicLibrary(directory?: string) {
         browserLibraryActive = true;
         musicDirectory = browserCatalog.directory;
         songs = browserCatalog.songs;
-        archiveColumns.length = Math.min(5, songs.length);
-        categories.splice(1, categories.length - 1, ...archiveColumns);
         records = mapRecords(songs);
         indexRecords();
         return records;
@@ -89,8 +106,6 @@ export async function loadMusicLibrary(directory?: string) {
   browserLibraryActive = false;
   musicDirectory = result.directory || musicDirectory;
   songs = result.songs || [];
-  archiveColumns.length = Math.min(5, songs.length);
-  categories.splice(1, categories.length - 1, ...archiveColumns);
   records = mapRecords(songs);
   indexRecords();
   return records;
@@ -110,7 +125,7 @@ export function columnFiles(lane: number) {
 export function fileLocation(index: number) {
   const lane = archiveColumns.indexOf(records[index].category);
   const row = 12 + columnFiles(lane).indexOf(index);
-  return { lane, row, slot: row < 32 ? lane * 32 + row : 1000 + index };
+  return { lane, row, slot: 1000 + index };
 }
 
 export function fileAtSlot(slot: number) {

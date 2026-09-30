@@ -31,7 +31,11 @@ import {
   browserLibraryActive,
   musicError,
   loadMusicLibrary,
+  musicGrouping,
+  setMusicGrouping,
+  playbackOrder,
 } from "./data";
+import { durationLabel, type MusicGrouping } from "./music-catalog";
 import { MusicPlayer } from "./music-player";
 import { chooseMusicDirectory } from "./library-setup";
 import "./empty-gallery.css";
@@ -75,6 +79,7 @@ $("#stage").innerHTML = `
   <nav class="system-nav" aria-label="系统导航">
     <button data-action="search"><span class="nav-glyph">⌕</span> MUSIC INDEX <span class="key">/</span></button>
     <button data-action="saved" aria-label="查看收藏歌曲" title="收藏歌曲">＋ SAVED <span id="saved-count">00</span></button>
+    <button data-action="theme-toggle" aria-label="切换夜间模式" aria-pressed="false">◐ <span class="theme-toggle-label">夜间</span></button>
     <button class="settings-button" data-action="settings" aria-label="系统设置" title="系统设置"><span class="settings-glyph" aria-hidden="true">◷</span><span class="settings-label">设置</span></button>
   </nav>
   <button id="skip" class="skip" data-action="skip">ENTER SYSTEM <span>↗</span></button>
@@ -88,12 +93,13 @@ $("#stage").innerHTML = `
   <svg id="inspection-marks" viewBox="0 0 1920 1080" aria-hidden="true"><path id="inspection-lines"/><g id="inspection-corners"></g><circle id="inspection-point" r="1.8"/></svg>
   <div id="inspection-text" aria-hidden="true">CONFIDENTIALITY:<strong>GENERAL BUSINESS USE</strong></div>
   <section id="archive-ui" class="archive-ui" aria-label="歌曲展厅">
+    <div class="collection-toolbar"><span>COLLECTION / 陈列</span><div role="group" aria-label="歌曲分类"><button data-grouping="all">全部</button><button data-grouping="album">专辑</button><button data-grouping="artist">歌手</button></div><label><span class="sr-only">跳转分类</span><select id="collection-group" aria-label="跳转分类"></select></label></div>
     <div id="empty-gallery" class="empty-gallery"><span>AUDIO COLLECTION / 000</span><h2>展厅尚无歌曲</h2><p>选择本机音乐文件夹，即可将歌曲陈列在这里。</p><button data-action="choose-music">选择音乐目录 ↗</button></div>
     <div class="archive-callout"><div class="eyebrow">AUDIO COLLECTION <span>／</span> <span id="archive-category">声音档案 01</span></div><button class="file-title" data-action="open">TRACK NUMBER: <span id="selected-id">M-<span id="selected-code">001</span></span><span class="file-open">↗</span></button><div class="callout-rule"><i></i></div><div class="file-summary"><span id="selected-title">曲库载入中</span><span id="selected-clearance">READY TO PLAY</span></div><button class="read-file" data-action="open">PLAY TRACK <span>→</span></button></div>
     <div id="hover-label" class="hover-label" hidden>M-<span id="hover-code">001</span> / <span id="hover-title"></span></div>
     <div class="archive-counter"><span class="tiny-label">TRACK / SELECT</span><div><span id="selected-number">01</span><i>/</i><span class="count-total">12</span></div></div>
     <div class="archive-navigation"><button data-action="prev" aria-label="上一个档案">↑</button><div id="file-ticks" class="file-ticks"></div><button data-action="next" aria-label="下一个档案">↓</button></div>
-    <div class="column-navigation"><button data-action="column-prev" aria-label="上一列">←</button><div><span id="column-number">COLUMN <span id="column-index">01</span> / ${String(archiveColumns.length).padStart(2, "0")}</span><strong id="column-name">声音档案 01</strong></div><button data-action="column-next" aria-label="下一列">→</button></div>
+    <div class="column-navigation"><button data-action="column-prev" aria-label="上一列">←</button><div><span id="column-number">COLLECTION <span id="column-index">01</span> / <span id="column-total">${String(archiveColumns.length).padStart(2, "0")}</span></span><strong id="column-name">声音档案 01</strong></div><button data-action="column-next" aria-label="下一列">→</button></div>
     <div class="archive-hint"><kbd>←</kbd> <kbd>→</kbd> 切换列 <span>／</span> <kbd>↑</kbd> <kbd>↓</kbd> 前后档案 <span>／</span> <kbd>ENTER</kbd> 读取</div>
   </section>
   <section id="detail-ui" class="detail-ui" aria-label="歌曲播放" hidden>
@@ -118,7 +124,7 @@ $("#viewport").insertAdjacentHTML("beforeend", '<button class="mobile-entry" dat
 
 type Mode = "boot" | "archive" | "detail";
 let mode: Mode = "boot",
-  selected = 0,
+  selected = playbackOrder()[0] ?? 0,
   bootStart = 0,
   lastStep = "",
   ready = false;
@@ -301,6 +307,7 @@ function savePrefs() {
   scene?.setMotion(prefs.motion);
   scene?.setTheme(prefs.colorTheme === "dark", !motionActive("surfaceTransitions") || !started);
   document.querySelectorAll<HTMLElement>("[data-color-theme]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.colorTheme === prefs.colorTheme)));
+  syncThemeToggle();
   scene?.setSuperPerformance(superPerformanceEnabled());
   viewer?.setSuperPerformance(superPerformanceEnabled());
   scene?.setQuality(effectiveRenderQuality());
@@ -319,6 +326,24 @@ function savePrefs() {
   updateFooterClock(new Date(), motionActive("rollingNumbers"));
   syncWallpaperBackground();
 }
+function syncThemeToggle() {
+  const dark = prefs.colorTheme === "dark";
+  $('[data-action="theme-toggle"]').setAttribute("aria-pressed", String(dark));
+  $('[data-action="theme-toggle"]').setAttribute("aria-label", dark ? "切换日间模式" : "切换夜间模式");
+  $(".theme-toggle-label").textContent = dark ? "日间" : "夜间";
+}
+syncThemeToggle();
+function syncCollectionControls() {
+  document.querySelectorAll<HTMLElement>("[data-grouping]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.grouping === musicGrouping)));
+  $("#collection-group").innerHTML = archiveColumns.map((name, lane) => `<option value="${lane}">${escapeHtml(name)} · ${columnFiles(lane).length} 首</option>`).join("");
+  $("#column-total").textContent = String(archiveColumns.length).padStart(2, "0");
+}
+syncCollectionControls();
+document.addEventListener("change", event => {
+  if ((event.target as HTMLElement).id !== "collection-group") return;
+  const lane = Number((event.target as HTMLSelectElement).value);
+  if (ready && mode === "archive" && !modal) select(columnMemory[lane]);
+});
 let previousLayout = "";
 function fit() {
   const stage = $("#stage");
@@ -455,6 +480,7 @@ function updateSelection(navigation?: ArchiveNavigation) {
   const r = records[selected];
   const { lane } = fileLocation(selected);
   const files = columnFiles(lane);
+  $<HTMLSelectElement>("#collection-group").value = String(lane);
   selectionTitle.update({ text: r.title, animated: motionActive("rollingText") && mode === "archive" });
   clearanceTitle.update({ text: r.clearance, animated: motionActive("rollingText") && mode === "archive" });
   categoryTitle.update({ text: r.category, animated: motionActive("rollingText") && mode === "archive" });
@@ -515,8 +541,8 @@ function replayBootAfterModal(forcePreview: boolean) {
   lastStep = "";
   setMode(!motionActive("boot") && !forcePreview ? "archive" : "boot");
   audio.restartBoot();
-  scene?.select(0);
-  selected = 0;
+  selected = playbackOrder()[0] ?? 0;
+  if (records.length) scene?.select(selected);
   updateSelection();
   if (!forcePreview) audio.play("ui-tick");
 }
@@ -552,12 +578,22 @@ function renderDetail() {
   tabTransition.cancel();
   const r = records[selected];
   $("#object-id").textContent = "NO." + String(selected + 1).padStart(3, "0");
-  $("#detail-content").innerHTML = `${player.detail(r.song)}<button class="music-save" data-action="bookmark" aria-pressed="${saved.has(r.id)}">${saved.has(r.id) ? "− REMOVE FROM SAVED / 取消收藏" : "＋ SAVE TRACK / 收藏歌曲"}</button>`;
+  $("#detail-content").innerHTML = `<header class="music-document-heading"><div class="detail-kicker"><span>RHINE MUSIC LIB / AUDIO ARCHIVE</span><span>${r.id}</span></div><h2>${escapeHtml(r.title)}</h2><div class="detail-title-cn">${escapeHtml(r.department)}<span>声音档案</span></div></header>
+    <div class="detail-rule"></div>
+    <dl class="metadata"><div><dt>ALBUM / 所属专辑</dt><dd>${escapeHtml(r.date)}</dd></div><div><dt>YEAR · TRACK / 年份 · 曲序</dt><dd>${escapeHtml(r.lead)} · ${r.song?.track ?? "未记录"}</dd></div></dl>
+    ${player.detail(r.song)}
+    <div class="detail-tabs" role="tablist" aria-label="声音档案资料"><button id="tab-overview" role="tab" data-tab="overview">DOSSIER <span>档案概览</span></button><button id="tab-notes" role="tab" data-tab="notes">ALBUM <span>专辑曲目</span></button><button id="tab-history" role="tab" data-tab="history">RECORD <span>载体记录</span></button><i class="tab-indicator"></i></div>
+    <div id="tab-panel" class="tab-panel" role="tabpanel" tabindex="0"></div>
+    <div class="music-document-footer"><button class="music-save" data-action="bookmark" aria-pressed="${saved.has(r.id)}">${saved.has(r.id) ? "− REMOVE FROM SAVED / 取消收藏" : "＋ SAVE TRACK / 收藏歌曲"}</button><span>LOCAL AUDIO / ${r.id}</span></div>`;
   $("#detail-content").setAttribute("tabindex", "-1");
+  setTab(activeTab, false);
+  documentDecryption.reset($("#detail-content"), !motionActive("documentReveal") || !scene);
   player.sync();
 }
 function overview() {
-  return `<div class="panel-label">ABSTRACT / 摘要</div><p>${escapeHtml(records[selected].abstract)}</p>`;
+  const r = records[selected];
+  const sameArtist = records.filter(record => record.song?.artist === r.song?.artist).length;
+  return `<div class="panel-label">ARCHIVE ABSTRACT / 收录摘要</div><p>${escapeHtml(r.abstract)}</p><p>当前曲库收录该演出者的 ${sameArtist} 首作品。本页保留音源标签与专辑内曲序，可从专辑曲目切换音轨，或返回展厅继续查阅。</p>`;
 }
 function setTab(tab: string, sound = true) {
   if (sound && tab === activeTab) return;
@@ -578,17 +614,8 @@ function setTab(tab: string, sound = true) {
     tab === "overview"
       ? overview()
       : tab === "notes"
-        ? `<div class="panel-label">RESEARCH NOTES / 研究记录</div><ol class="research-notes">${r.findings.map((f, i) => `<li><span>${String(i + 1).padStart(2, "0")}</span>${escapeHtml(f)}</li>`).join("")}</ol>`
-        : `<div class="panel-label">ACCESS LOG / 本次访问</div>${accessLog
-            .filter((entry) => entry.id === r.id)
-            .slice(0, 4)
-            .map(
-              (entry) =>
-                `<div class="log-row"><span>${entry.time}</span><span>JOYCE MOORE</span><b>READ AUTHORIZED</b></div>`,
-            )
-            .join(
-              "",
-            )}<p class="log-note">本次会话已通过身份验证。歌曲播放以当前终端可访问范围展示。</p>`;
+        ? `<div class="panel-label">ALBUM INDEX / ${escapeHtml(r.song?.album ?? "")}</div><div class="album-tracks">${records.map((record, index) => ({ record, index })).filter(({ record }) => record.song?.album === r.song?.album).sort((a, b) => (a.record.song?.track ?? Infinity) - (b.record.song?.track ?? Infinity) || a.record.title.localeCompare(b.record.title, "zh-CN", { numeric: true })).map(({ record, index }, position) => `<button data-album-track="${index}" aria-current="${index === selected ? "true" : "false"}"><span>${String(record.song?.track ?? position + 1).padStart(2, "0")}</span><span>${escapeHtml(record.title)}<small>${escapeHtml(record.department)}</small></span><time>${durationLabel(record.song?.duration ?? null)}</time><span aria-hidden="true">↗</span></button>`).join("")}</div>`
+        : `<div class="panel-label">MEDIA RECORD / 载体记录</div><ol class="research-notes">${r.findings.map((f, i) => `<li><span>${String(i + 1).padStart(2, "0")}</span>${escapeHtml(f)}</li>`).join("")}</ol><p class="log-note">${escapeHtml(r.source)}</p>`;
   $("#tab-panel").scrollTop = 0;
   documentDecryption.refresh();
   if (sound) {
@@ -783,6 +810,17 @@ document.addEventListener("click", (e) => {
   if (modalClosing) return;
   const el = (e.target as Element).closest<HTMLElement>("button");
   if (!el) return;
+  if (el.dataset.action === "theme-toggle") { prefs.colorTheme = prefs.colorTheme === "dark" ? "light" : "dark"; savePrefs(); return; }
+  if (el.dataset.grouping && mode === "archive" && !modal) {
+    setMusicGrouping(el.dataset.grouping as MusicGrouping);
+    columnMemory.splice(0, columnMemory.length, ...archiveColumns.map((_, lane) => columnFiles(lane)[0]));
+    filter = "全部歌曲";
+    syncCollectionControls();
+    if (records.length) { columnMemory[fileLocation(selected).lane] = selected; scene?.select(selected); updateSelection(); }
+    return;
+  }
+  if (el.dataset.albumTrack !== undefined) { void player.play(Number(el.dataset.albumTrack)); return; }
+  if (el.dataset.tab) { setTab(el.dataset.tab); return; }
   if (el.dataset.action === "motion-preset") {
     const preset = el.dataset.preset;
     if (preset !== "full" && preset !== "reduced") return;
@@ -900,7 +938,7 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     return;
   }
-  const typing = e.target instanceof HTMLInputElement;
+  const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement;
   if (e.key === "Escape") {
     if (modal) closeModal();
     else if (mode === "detail" || (mode === "boot" && ready)) { const sound = mode === "detail" ? "back" : "ui-tick"; setMode("archive"); audio.play(sound); }
@@ -978,8 +1016,8 @@ function bootFrame(t: number) {
     setMode("archive");
     return undefined;
   }
-  if (isWallpaper && frozenTime === null && t >= ARRAY_OPENING_END &&
-      !openingShowsDetail(wallpaperHost()?.properties.openingdetail?.value, !!workbench?.enabled)) {
+  if (frozenTime === null && t >= ARRAY_OPENING_END && (!isWallpaper ||
+      !openingShowsDetail(wallpaperHost()?.properties.openingdetail?.value, !!workbench?.enabled))) {
     setMode("archive");
     return undefined;
   }
@@ -1047,6 +1085,8 @@ function frame(ms: number) {
       : undefined;
   wallpaperEffects?.update(time, motionIsReduced(), motionActive("pointerParallax"));
   // The calibrated 2D opening fully covers the scene until array entry.
+  scene?.setPlayback(player.currentIndex, player.playing);
+  viewer?.setPlayback(player.playing && player.currentIndex === selected);
   if (!viewer?.isOpen && (!cinema || cinema.time >= 21.9)) scene?.update(time, cinema);
   viewer?.update(time);
   if (threeState === "closing" && scene?.presentationHidden) releaseThree();
@@ -1199,7 +1239,7 @@ async function start() {
     if (scene) bindScene(scene);
     savePrefs();
     ready = true;
-    if (records.length) select(0);
+    if (records.length) select(playbackOrder()[0]);
     if (entry) entry.ready();
     else {
       if (isWallpaper) {
